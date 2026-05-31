@@ -29,6 +29,8 @@
 //! Knobs (env vars):
 //!   WHIR_BENCH_MIN_LOG / WHIR_BENCH_MAX_LOG  — size sweep bounds (default 14 / 20)
 //!   WHIR_BENCH_POW                           — PoW bits (default 20; 0 disables grinding)
+//!   WHIR_BENCH_COLS                          — committed columns under one Merkle tree
+//!                                              (default 1; stacks to a wider poly)
 //!   WHIR_BENCH_PROOF_SIZES=<path>            — also emit a proof-size CSV to <path>
 //!                                              (off by default; one proof built per cell)
 
@@ -82,6 +84,11 @@ fn pow_bits() -> usize {
 }
 // One opening claim of one column is enough to exercise the full pipeline.
 const NUM_EVALUATIONS: usize = 1;
+// Number of committed columns (all under one Merkle tree). Override via
+// WHIR_BENCH_COLS — e.g. 31 to mirror UltraHonk's 31 separate KZG commits.
+fn num_cols() -> usize {
+    env_usize("WHIR_BENCH_COLS").unwrap_or(1).max(1)
+}
 
 /// Concrete PCS type with the layout mode fixed to the SVO suffix prover.
 type WhirPcs<EF, F, Dft, Mmcs, Ch> = WhirProver<EF, F, Dft, Mmcs, Ch, SuffixProver<F, EF>>;
@@ -339,29 +346,38 @@ macro_rules! field_module {
                 let build_perms: fn(&mut SmallRng) -> (Mmcs, Chal) = $build_perms;
                 let (mmcs, base_challenger) = build_perms(&mut perm_rng);
 
+                // Build the witness first: WHIR stacks the `cols` columns into one
+                // multilinear of `num_variables + ceil(log2(cols))` variables, all
+                // committed under a single Merkle tree. WHIR_BENCH_COLS sets the
+                // width (default 1; e.g. 31 to mirror UltraHonk's 31 KZG commits).
+                let cols = num_cols();
+                let mut data_rng = SmallRng::seed_from_u64(0xD157A1B);
+                let table = Table::new(
+                    (0..cols)
+                        .map(|_| Poly::<Fld>::rand(&mut data_rng, num_variables))
+                        .collect(),
+                );
+                let witness = <Lay as Layout<Fld, Ext>>::new_witness(vec![table], FOLDING);
+                // The committed polynomial is the stacked witness; size the config
+                // to it (equals `num_variables` when cols == 1).
+                let stacked_vars = witness.num_variables();
+
                 let folding_factor = FoldingFactor::Constant(FOLDING);
                 let params = ProtocolParameters {
                     security_level,
                     pow_bits: pow_bits(),
-                    round_log_inv_rates: default_round_log_inv_rates(
-                        num_variables,
-                        &folding_factor,
-                    ),
+                    round_log_inv_rates: default_round_log_inv_rates(stacked_vars, &folding_factor),
                     folding_factor,
                     soundness_type: SOUNDNESS,
                     starting_log_inv_rate: STARTING_LOG_INV_RATE,
                 };
 
-                let config = WhirConfig::<Ext, Fld, Chal>::new(num_variables, params);
+                let config = WhirConfig::<Ext, Fld, Chal>::new(stacked_vars, params);
                 let dft = Dft::new(1 << config.max_fft_size());
                 let pcs = Pcs::new(config, dft, mmcs);
 
-                let mut data_rng = SmallRng::seed_from_u64(0xD157A1B);
-                let table = Table::new(vec![Poly::<Fld>::rand(&mut data_rng, num_variables)]);
-                let witness = <Lay as Layout<Fld, Ext>>::new_witness(vec![table], FOLDING);
-
                 let protocol = OpeningProtocol::new(vec![TableSpec::new(
-                    TableShape::new(num_variables, 1),
+                    TableShape::new(num_variables, cols),
                     vec![vec![0]; NUM_EVALUATIONS],
                 )]);
 

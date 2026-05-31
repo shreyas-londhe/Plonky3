@@ -30,9 +30,22 @@ batched KZG opening. WHIR here is a **single-polynomial PCS** (commit / open / v
 **WHIR's Merkle commit over a 31-bit field is dead even with — or faster than — KZG's MSM commit, per
 polynomial, on the identical machine.** (Goldilocks' 64-bit base + w8 Poseidon2 is the outlier, ~7× slower.)
 
-> Likely (unmeasured) WHIR edge: WHIR commits an entire multi-column witness as **one** Merkle tree,
-> whereas bb does 31 separate KZG commits (890 ms total). A single WHIR commit of a 31-wide 2¹⁹ matrix
-> would almost certainly beat 31 × 28.7 ms. Our bench only commits 1 column, so this isn't claimed.
+## Full 31-column witness commit — measured (KZG wins here)
+The realistic question is committing the *whole* witness: bb does **31 separate KZG commits**; WHIR
+stacks 31 columns into **one** Merkle tree. Measured @2¹⁹ per column (`WHIR_BENCH_COLS=31`):
+
+| committing all 31 columns | time |
+|---|--:|
+| **bb — 31 KZG commits** | **890 ms** |
+| WHIR BabyBear (stacks to 2²⁴, one tree) | 1458 ms |
+| WHIR KoalaBear (stacks to 2²⁴, one tree) | 1325 ms |
+| WHIR Goldilocks (stacks to 2²⁴, one tree) | 9323 ms |
+
+→ **bb is ~1.5× faster than WHIR for the full-witness commit** — the opposite of what the per-poly tie
+suggests. WHIR stacks `31·2¹⁹` and pads up to `2²⁴`, paying one 2²⁴-sized FFT (larger log-factor +
+power-of-2 padding) instead of 31 independent 2¹⁹ FFTs. (31 *separate* WHIR trees would be ~888 ms ≈ bb,
+but WHIR's natural single-root mode stacks.) WHIR's offsetting benefit: one commitment / one Merkle root /
+one batched opening for the entire witness, vs bb's 31 commitments.
 
 ## Proof size — the decisive KZG win (machine-independent)
 | | proof size @2¹⁹ |
@@ -72,17 +85,20 @@ marginally faster but uses more memory.)
 | | bb / KZG (UltraHonk) | WHIR (31-bit fields) |
 |---|---|---|
 | Commit / poly @2¹⁹ | 28.7 ms | **26–29 ms** (tie) |
+| Commit **full 31-col witness** @2¹⁹ | **890 ms** | 1325–1458 ms (~1.5× slower) |
 | Proof size | **15.9 KiB** | 111–161 KiB |
 | Verify (in-process) | ~ms (pairing) | 2–3 ms |
 | Setup | trusted CRS | **transparent** |
 | Field | **BN254 native** | small fields only (no BN254) |
 | Post-quantum | no | **plausibly** (hash-based) |
 
-**Takeaway:** on the same machine, WHIR's commit throughput **matches KZG** per polynomial (KoalaBear
-beats it), and WHIR adds transparent setup + plausible post-quantum security — but pays **~8× in proof
-size**. KZG keeps constant-size proofs and native BN254. They are not substitutable on the same curve:
-WHIR cannot run over BN254 (it needs `PrimeField64`), so a true *same-field* WHIR-vs-KZG is impossible —
-this comparison is same-machine + same polynomial size, different field and mechanism.
+**Takeaway:** on the same machine, WHIR's commit throughput **ties KZG per polynomial** (KoalaBear edges
+ahead), but for the **full multi-column witness KZG wins ~1.5×** — WHIR stacks columns into one padded
+2²⁴ poly and pays a bigger FFT. KZG also keeps **~8× smaller proofs** and native BN254. WHIR's wins are
+transparent setup, plausible post-quantum security, and a single commitment/opening for the whole
+witness. They are not substitutable on the same curve: WHIR cannot run over BN254 (needs `PrimeField64`),
+so a true *same-field* WHIR-vs-KZG is impossible — this is same-machine + same-size, different field and
+mechanism.
 
 ## Reproduce the bb side
 ```bash

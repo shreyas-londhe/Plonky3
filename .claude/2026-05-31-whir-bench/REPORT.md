@@ -142,9 +142,10 @@ across fields, use the pow=0 table; for real wall-clock, add the grind.**
 ## vs Barretenberg (KZG/UltraHonk) — same machine
 Re-ran bb's RSA-passport UltraHonk proof on this same M3 Pro for a hardware-fair comparison — see
 [`COMPARISON_BB.md`](COMPARISON_BB.md). Headline at 2¹⁹: **per-polynomial commit is a tie** (bb-KZG
-28.7 ms ≈ WHIR BabyBear 28.7 ms, KoalaBear 26.2 ms), but **KZG proofs are ~8× smaller** (16 KiB vs
-~110–160 KiB). KZG = constant-size + native BN254 + trusted setup; WHIR = transparent + plausibly
-post-quantum + larger proofs (and cannot run over BN254).
+28.7 ms ≈ WHIR BabyBear 28.7 ms, KoalaBear 26.2 ms), but for the **full 31-column witness KZG wins
+~1.5×** (890 ms vs WHIR's stacked 1325–1458 ms — WHIR pads to 2²⁴), and **KZG proofs are ~8× smaller**
+(16 KiB vs ~110–160 KiB). KZG = constant-size + native BN254 + trusted setup; WHIR = transparent +
+plausibly post-quantum + larger proofs (and cannot run over BN254).
 
 ## Headline findings (from clean data)
 
