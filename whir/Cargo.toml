@@ -35,6 +35,8 @@ tracing.workspace = true
 
 [dev-dependencies]
 p3-baby-bear = { path = "../baby-bear" }
+p3-bn254 = { path = "../bn254" }
+p3-goldilocks = { path = "../goldilocks" }
 p3-keccak = { path = "../keccak" }
 p3-koala-bear = { path = "../koala-bear" }
 p3-sumcheck = { workspace = true, features = ["test-util"] }
@@ -52,6 +54,10 @@ harness = false
 
 [[bench]]
 name = "whir_pcs"
+harness = false
+
+[[bench]]
+name = "whir_fields"
 harness = false
 
 [[example]]

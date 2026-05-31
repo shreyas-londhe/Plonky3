@@ -1,0 +1,10 @@
+commit_sha: 8fa63378fd0a9a4eeaff32b8751579cbf13f58d9
+git_dirty: 3 files modified
+rustc: rustc 1.92.0 (ded5c06cf 2025-12-08)
+cargo_profile: bench (release, opt-level per workspace)
+cpu: Apple M3 Pro
+physical_cores: 12
+logical_cores: 12
+ram_bytes: 19327352832
+os: macOS 26.5
+rustflags: <unset>
