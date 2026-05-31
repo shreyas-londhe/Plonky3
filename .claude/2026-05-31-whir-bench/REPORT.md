@@ -139,6 +139,13 @@ So at small `n`, `open` is ~98% proof-of-work; by 2^20 the arithmetic dominates.
 query count / proof size) to trade prover grind against proof size. **For prover-arithmetic comparison
 across fields, use the pow=0 table; for real wall-clock, add the grind.**
 
+## vs Barretenberg (KZG/UltraHonk) — same machine
+Re-ran bb's RSA-passport UltraHonk proof on this same M3 Pro for a hardware-fair comparison — see
+[`COMPARISON_BB.md`](COMPARISON_BB.md). Headline at 2¹⁹: **per-polynomial commit is a tie** (bb-KZG
+28.7 ms ≈ WHIR BabyBear 28.7 ms, KoalaBear 26.2 ms), but **KZG proofs are ~8× smaller** (16 KiB vs
+~110–160 KiB). KZG = constant-size + native BN254 + trusted setup; WHIR = transparent + plausibly
+post-quantum + larger proofs (and cannot run over BN254).
+
 ## Headline findings (from clean data)
 
 1. **31-bit fields (BabyBear/KoalaBear) dominate commit** — ~7× cheaper than Goldilocks, thanks to
